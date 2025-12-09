@@ -1,4 +1,4 @@
-name: Build, Test, and Deploy - Store Front BB
+name: CI/CD - Store Front Best Buy
 
 on:
   push:
@@ -6,47 +6,8 @@ on:
       - main
 
 jobs:
-  Build:
+  build-and-push:
     runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Simulate Install Dependencies
-        run: echo "Installing dependencies..."
-
-      - name: Simulate Unit Tests
-        run: echo "Running unit tests..."
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build Docker Image (test)
-        run: |
-          docker build -t nada0038/store-front-bestbuy:test .
-
-      - name: Push Docker Image (test)
-        run: |
-          docker push nada0038/store-front-bestbuy:test
-
-  Test:
-    runs-on: ubuntu-latest
-    needs: Build
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Simulate Integration Tests
-        run: echo "Running integration tests..."
-
-  Release:
-    runs-on: ubuntu-latest
-    needs: Test
 
     steps:
       - name: Checkout Code
@@ -58,27 +19,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Promote Image to Latest
-        run: |
-          docker pull nada0038/store-front-bestbuy:test
-          docker tag nada0038/store-front-bestbuy:test nada0038/store-front-bestbuy:latest
-          docker push nada0038/store-front-bestbuy:latest
-
-  Deploy:
-    runs-on: ubuntu-latest
-    needs: Release
-
-    steps:
-      - name: Deploy to AKS
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-        run: |
-          echo "$KUBE_CONFIG_DATA" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
-
-          kubectl set image deployment/store-front \
-            store-front=nada0038/store-front-bestbuy:latest
-
-          kubectl rollout restart deployment/store-front
-          kubectl rollout status deployment/store-front
-          kubectl get pods -o wide
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            nada0038/store-front-bestbuy:latest
+            nada0038/store-front-bestbuy:${{ github.sha }}
